@@ -116,7 +116,7 @@ const Dashboard: React.FC = () => {
         setSyncing(true);
         setError(null);
         try {
-            await betApi.syncNotionData();
+            await betApi.syncNotionData("2024-2025");
             await fetchAll(filters);
         } catch {
             setError('Синхронизация завершилась с ошибкой');
