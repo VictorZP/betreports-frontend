@@ -35,7 +35,7 @@ export default function Home() {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      await betApi.syncNotionData();
+      await betApi.syncNotionData("2024-2025");
       await fetchData(filters);
       alert('Синхронизация завершена успешно!');
 
