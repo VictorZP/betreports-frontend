@@ -38,6 +38,7 @@ export default function Home() {
       await betApi.syncNotionData();
       await fetchData(filters);
       alert('Синхронизация завершена успешно!');
+
     } catch (error) {
       alert('Ошибка синхронизации. Проверьте настройки Notion.');
     } finally {
@@ -84,8 +85,8 @@ export default function Home() {
               className={`
                 px-5 py-2.5 rounded-xl font-medium transition-all duration-200 shadow-lg
                 flex items-center gap-2
-                ${syncing 
-                  ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed' 
+                ${syncing
+                  ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
                   : 'bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white hover:scale-105 shadow-emerald-500/25'
                 }
               `}
