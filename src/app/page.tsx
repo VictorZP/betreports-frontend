@@ -20,11 +20,6 @@ export default function Home() {
   const [filters, setFilters] = useState<any>({});
   const [itemsPerPage, setItemsPerPage] = useState(25);
 
-  // Показывать кнопку синхронизации только если явно разрешено переменной окружения
-  // Локально добавь в .env.local: NEXT_PUBLIC_SHOW_SYNC=true
-  // На проде переменную НЕ задавай — кнопка будет скрыта.
-  const showSync = process.env.NEXT_PUBLIC_SHOW_SYNC === 'true';
-
   const fetchData = async (appliedFilters: any = {}) => {
     setLoading(true);
     try {
