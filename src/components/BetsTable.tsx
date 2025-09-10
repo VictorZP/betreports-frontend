@@ -2,6 +2,34 @@ import React, { useState } from 'react';
 import { Camera, Link as LinkIcon } from 'lucide-react';
 import ImageModal from './ImageModal';
 
+// Всегда форматируем как Europe/Paris.
+// Если пришла строка без часового пояса (без 'Z' или '+03:00'),
+// считаем её UTC и ДОБАВЛЯЕМ 'Z', чтобы не смещалось.
+const PARIS_TZ = 'Europe/Paris';
+
+function parseAsUtc(iso?: string | null) {
+  if (!iso) return null;
+  const hasTz = /[zZ]|[+\-]\d\d:?\d\d/.test(iso);
+  return new Date(hasTz ? iso : iso + 'Z');
+}
+
+function formatParis(iso?: string | null) {
+  const d = parseAsUtc(iso);
+  if (!d || isNaN(d.getTime())) return '-';
+  return new Intl.DateTimeFormat('ru-RU', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: PARIS_TZ,
+  })
+    .format(d)
+    .replace(',', ''); // убираем запятую между датой и временем
+}
+
+
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api').replace(/\/$/, '');
 
 interface Bet {
