@@ -126,7 +126,7 @@ const BetsTable: React.FC<BetsTableProps> = ({ bets, loading, itemsPerPage = 25 
                       year: 'numeric',
                       hour: '2-digit',
                       minute: '2-digit'
-                    })} GMT+2
+                    })}
                   </td>
                   <td className="p-4 text-gray-300 text-sm font-medium">{bet.tournament}</td>
                   <td className="p-4 text-gray-300 text-sm">{bet.match}</td>
