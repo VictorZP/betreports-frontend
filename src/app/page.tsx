@@ -7,6 +7,10 @@ import BetsTable from '@/components/BetsTable';
 import FiltersSidebar from '@/components/FiltersSidebar';
 import betApi from '@/services/api';
 
+const isProd = process.env.NODE_ENV === 'production';
+const showSync = !isProd && process.env.NEXT_PUBLIC_SHOW_SYNC === 'true';
+
+
 export default function Home() {
   const [bets, setBets] = useState<any[]>([]);
   const [stats, setStats] = useState<any | null>(null);
