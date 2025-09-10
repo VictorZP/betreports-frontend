@@ -152,13 +152,12 @@ const BetsTable: React.FC<BetsTableProps> = ({ bets, loading, itemsPerPage }) =>
                     {/* Результат */}
                     <td className="px-4 py-3">
                       <span
-                        className={`px-2 py-1 rounded-md text-xs ${
-                          isWin
+                        className={`px-2 py-1 rounded-md text-xs ${isWin
                             ? 'bg-emerald-900/40 text-emerald-300 border border-emerald-500/20'
                             : isLose
-                            ? 'bg-rose-900/40 text-rose-300 border border-rose-500/20'
-                            : 'bg-gray-700/40 text-gray-300 border border-gray-500/20'
-                        }`}
+                              ? 'bg-rose-900/40 text-rose-300 border border-rose-500/20'
+                              : 'bg-gray-700/40 text-gray-300 border border-gray-500/20'
+                          }`}
                       >
                         {bet.result || '-'}
                       </span>
@@ -218,11 +217,10 @@ const BetsTable: React.FC<BetsTableProps> = ({ bets, loading, itemsPerPage }) =>
             <button
               onClick={goPrev}
               disabled={currentPage === 1}
-              className={`px-3 py-1 rounded-md border ${
-                currentPage === 1
+              className={`px-3 py-1 rounded-md border ${currentPage === 1
                   ? 'border-gray-700 text-gray-500'
                   : 'border-gray-600 hover:bg-gray-800'
-              }`}
+                }`}
             >
               Назад
             </button>
@@ -232,11 +230,10 @@ const BetsTable: React.FC<BetsTableProps> = ({ bets, loading, itemsPerPage }) =>
             <button
               onClick={goNext}
               disabled={currentPage === totalPages}
-              className={`px-3 py-1 rounded-md border ${
-                currentPage === totalPages
+              className={`px-3 py-1 rounded-md border ${currentPage === totalPages
                   ? 'border-gray-700 text-gray-500'
                   : 'border-gray-600 hover:bg-gray-800'
-              }`}
+                }`}
             >
               Вперёд
             </button>
