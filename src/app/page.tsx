@@ -8,20 +8,25 @@ import FiltersSidebar from '@/components/FiltersSidebar';
 import betApi from '@/services/api';
 
 export default function Home() {
-  const [bets, setBets] = useState([]);
-  const [stats, setStats] = useState(null);
+  const [bets, setBets] = useState<any[]>([]);
+  const [stats, setStats] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [filters, setFilters] = useState({});
+  const [filters, setFilters] = useState<any>({});
   const [itemsPerPage, setItemsPerPage] = useState(25);
 
-  const fetchData = async (appliedFilters = {}) => {
+  // Показывать кнопку синхронизации только если явно разрешено переменной окружения
+  // Локально добавь в .env.local: NEXT_PUBLIC_SHOW_SYNC=true
+  // На проде переменную НЕ задавай — кнопка будет скрыта.
+  const showSync = process.env.NEXT_PUBLIC_SHOW_SYNC === 'true';
+
+  const fetchData = async (appliedFilters: any = {}) => {
     setLoading(true);
     try {
       const [betsData, statsData] = await Promise.all([
         betApi.getBets(appliedFilters),
-        betApi.getStats(appliedFilters)
+        betApi.getStats(appliedFilters),
       ]);
       setBets(betsData);
       setStats(statsData);
@@ -35,10 +40,9 @@ export default function Home() {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      await betApi.syncNotionData("2024-2025");
+      await betApi.syncNotionData('2024-2025'); // передаём сезон
       await fetchData(filters);
       alert('Синхронизация завершена успешно!');
-
     } catch (error) {
       alert('Ошибка синхронизации. Проверьте настройки Notion.');
     } finally {
@@ -79,21 +83,25 @@ export default function Home() {
                 Basketball <span className="text-emerald-400">Analytics</span>
               </h1>
             </div>
-            <button
-              onClick={handleSync}
-              disabled={syncing}
-              className={`
-                px-5 py-2.5 rounded-xl font-medium transition-all duration-200 shadow-lg
-                flex items-center gap-2
-                ${syncing
-                  ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white hover:scale-105 shadow-emerald-500/25'
-                }
-              `}
-            >
-              <RefreshCw className={`${syncing ? 'animate-spin' : ''}`} size={18} />
-              {syncing ? 'Синхронизация...' : 'Синхронизировать'}
-            </button>
+
+            {/* Кнопка синхронизации показывается только если разрешено флагом */}
+            {showSync && (
+              <button
+                onClick={handleSync}
+                disabled={syncing}
+                className={`
+                  px-5 py-2.5 rounded-xl font-medium transition-all duration-200 shadow-lg
+                  flex items-center gap-2
+                  ${syncing
+                    ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white hover:scale-105 shadow-emerald-500/25'
+                  }
+                `}
+              >
+                <RefreshCw className={`${syncing ? 'animate-spin' : ''}`} size={18} />
+                {syncing ? 'Синхронизация...' : 'Синхронизировать'}
+              </button>
+            )}
           </div>
 
           {/* Stats Cards */}
