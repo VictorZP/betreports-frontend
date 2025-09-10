@@ -1,5 +1,6 @@
 // src/components/NominalsTable.tsx
-import React from 'react';
+import React, { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 type PeriodRow = {
   start: string;      // 'YYYY-MM-DD'
@@ -13,67 +14,88 @@ type PeriodRow = {
 };
 
 export default function NominalsTable({ periods }: { periods: PeriodRow[] }) {
+  const [open, setOpen] = useState<Record<number, boolean>>({}); // какие периоды раскрыты
+
+  const toggle = (idx: number) =>
+    setOpen((s) => ({ ...s, [idx]: !s[idx] }));
+
   const fmtNum = (n: number) =>
     new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(n);
 
   const fmtMoney = (n: number) =>
-    (n >= 0 ? '$' : '-$') +
-    fmtNum(Math.abs(n));
+    (n >= 0 ? '$' : '-$') + fmtNum(Math.abs(n));
 
   const fmtDate = (iso: string) => {
-    // ожидаем YYYY-MM-DD -> DD.MM.YYYY
     const [y, m, d] = iso.split('-');
     if (!y || !m || !d) return iso;
     return `${d}.${m}.${y}`;
   };
 
-  if (!periods || periods.length === 0) {
-    return null;
-  }
+  if (!periods || periods.length === 0) return null;
 
   return (
     <div className="w-full">
-      {/* Mobile: карточки */}
+      {/* Mobile: аккордеон */}
       <div className="md:hidden space-y-3">
         {periods.map((p, idx) => {
-          const wl = `${p.wins} / ${p.losses}`;
+          const isOpen = !!open[idx];
           const profitColor = p.profit >= 0 ? 'text-emerald-300' : 'text-rose-300';
+
           return (
             <div
               key={idx}
-              className="rounded-2xl border border-gray-700/40 bg-gray-800/40 p-4 shadow-sm"
+              className="rounded-2xl border border-gray-700/40 bg-gray-800/40 overflow-hidden"
             >
-              <div className="text-sm text-gray-300/90 mb-2">
-                <span className="font-medium">Период:</span>{' '}
-                {fmtDate(p.start)} — {fmtDate(p.end)}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-gray-800/50 border border-gray-700/40 p-3">
-                  <div className="text-xs text-gray-400 uppercase">Номинал</div>
-                  <div className="text-base text-gray-100 mt-1">{fmtNum(p.nominal)}</div>
+              {/* Заголовок периода */}
+              <button
+                onClick={() => toggle(idx)}
+                className="w-full flex items-center justify-between p-4 text-gray-200"
+                aria-expanded={isOpen}
+                aria-controls={`period-${idx}`}
+              >
+                <div className="text-sm">
+                  <span className="text-gray-300/90 font-medium">Период:</span>{' '}
+                  {fmtDate(p.start)} — {fmtDate(p.end)}
                 </div>
+                <ChevronDown
+                  size={18}
+                  className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
 
-                <div className="rounded-xl bg-gray-800/50 border border-gray-700/40 p-3">
-                  <div className="text-xs text-gray-400 uppercase">Банк</div>
-                  <div className="text-base text-gray-100 mt-1">{fmtMoney(p.bank)}</div>
-                </div>
+              {/* Контент периода */}
+              {isOpen && (
+                <div id={`period-${idx}`} className="px-4 pb-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-gray-800/50 border border-gray-700/40 p-3">
+                      <div className="text-xs text-gray-400 uppercase">Номинал</div>
+                      <div className="text-base text-gray-100 mt-1">{fmtNum(p.nominal)}</div>
+                    </div>
 
-                <div className="rounded-xl bg-gray-800/50 border border-gray-700/40 p-3">
-                  <div className="text-xs text-gray-400 uppercase">Ставок</div>
-                  <div className="text-base text-gray-100 mt-1">{fmtNum(p.bets)}</div>
-                </div>
+                    <div className="rounded-xl bg-gray-800/50 border border-gray-700/40 p-3">
+                      <div className="text-xs text-gray-400 uppercase">Банк</div>
+                      <div className="text-base text-gray-100 mt-1">{fmtMoney(p.bank)}</div>
+                    </div>
 
-                <div className="rounded-xl bg-gray-800/50 border border-gray-700/40 p-3">
-                  <div className="text-xs text-gray-400 uppercase">W/L</div>
-                  <div className="text-base text-gray-100 mt-1">{wl}</div>
-                </div>
+                    <div className="rounded-xl bg-gray-800/50 border border-gray-700/40 p-3">
+                      <div className="text-xs text-gray-400 uppercase">Ставок</div>
+                      <div className="text-base text-gray-100 mt-1">{fmtNum(p.bets)}</div>
+                    </div>
 
-                <div className="rounded-xl bg-gray-800/50 border border-gray-700/40 p-3 col-span-2">
-                  <div className="text-xs text-gray-400 uppercase">Профит</div>
-                  <div className={`text-base mt-1 ${profitColor}`}>{fmtMoney(p.profit)}</div>
+                    <div className="rounded-xl bg-gray-800/50 border border-gray-700/40 p-3">
+                      <div className="text-xs text-gray-400 uppercase">W/L</div>
+                      <div className="text-base text-gray-100 mt-1">
+                        {fmtNum(p.wins)} / {fmtNum(p.losses)}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl bg-gray-800/50 border border-gray-700/40 p-3 col-span-2">
+                      <div className="text-xs text-gray-400 uppercase">Профит</div>
+                      <div className={`text-base mt-1 ${profitColor}`}>{fmtMoney(p.profit)}</div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           );
         })}
