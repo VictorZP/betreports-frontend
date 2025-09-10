@@ -1,164 +1,226 @@
-'use client';
+import React, { useState } from 'react';
+import { Camera, Link as LinkIcon } from 'lucide-react';
+import ImageModal from './ImageModal';
 
-import React, { useEffect, useState } from 'react';
-import { Menu, RefreshCw } from 'lucide-react';
-import StatsCard from '@/components/StatsCard';
-import BetsTable from '@/components/BetsTable';
-import FiltersSidebar from '@/components/FiltersSidebar';
-import betApi from '@/services/api';
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api').replace(/\/$/, '');
 
-// Прод: скрываем кнопку синка
-const isProd = process.env.NODE_ENV === 'production';
-const showSync = !isProd && process.env.NEXT_PUBLIC_SHOW_SYNC === 'true';
+interface Bet {
+  id: number;
+  date: string;
+  tournament: string;
+  match: string;
+  bet_type: string;
+  total_value: number;
+  score: string;
+  result: string;
+  screenshot_url?: string;
+  match_url?: string; // Изменено с match_link на match_url
+}
 
-// Сезон по умолчанию
-const DEFAULT_SEASON = process.env.NEXT_PUBLIC_DEFAULT_SEASON || '2024-2025';
+interface BetsTableProps {
+  bets: Bet[];
+  loading: boolean;
+  itemsPerPage: number;
+}
 
-export default function Home() {
-  const [bets, setBets] = useState<any[]>([]);
-  const [stats, setStats] = useState<any | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [filters, setFilters] = useState<any>({});
-  const [itemsPerPage, setItemsPerPage] = useState(25);
+const BetsTable: React.FC<BetsTableProps> = ({ bets, loading, itemsPerPage = 25 }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  // Глобальный (фиксированный) банк и флаг конфликта фильтров
-  const [globalBank, setGlobalBank] = useState<number | null>(null);
-  const [filterConflict, setFilterConflict] = useState(false);
+  const totalPages = Math.ceil(bets.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const displayedBets = bets.slice(startIndex, startIndex + itemsPerPage);
 
-  // Подтянуть данные: метрики и ставки — по фильтрам; банк — общий (без фильтров)
-  const fetchData = async (appliedFilters: any = {}) => {
-    setLoading(true);
+  // Функция для подсчета суммы очков из счета
+  const calculateTotalPoints = (score: string): number => {
+    if (!score || score === '-') return 0;
+
+    // Убираем (ОТ) и (2ОТ) из счета
+    const cleanScore = score.replace(/\s*\(.*?\)/g, '');
+
+    // Разбиваем на команды
+    const parts = cleanScore.split('-');
+    if (parts.length !== 2) return 0;
+
     try {
-      const [betsData, statsFiltered, statsGlobal] = await Promise.all([
-        betApi.getBets(appliedFilters),
-        betApi.getStats(appliedFilters),
-        betApi.getStats({}), // общий currentBank без фильтров
-      ]);
+      const team1Score = parseInt(parts[0].trim());
+      const team2Score = parseInt(parts[1].trim());
+      return team1Score + team2Score;
+    } catch {
+      return 0;
+    }
+  };
 
-      const conflict = Boolean(statsFiltered?.filterConflict);
-      setFilterConflict(conflict);
+  // Функция для определения результата
+  const determineResult = (bet: Bet): 'WIN' | 'LOSE' | '-' => {
+    if (!bet.bet_type || !bet.total_value || !bet.score) return '-';
 
-      const fixedBank =
-        globalBank ?? (statsGlobal?.currentBank as number | undefined) ?? 2000;
+    const totalPoints = calculateTotalPoints(bet.score);
+    if (totalPoints === 0) return '-';
 
-      if (globalBank === null && statsGlobal?.currentBank != null) {
-        setGlobalBank(Number(statsGlobal.currentBank));
+    if (bet.bet_type.includes('OVER')) {
+      return totalPoints > bet.total_value ? 'WIN' : 'LOSE';
+    } else if (bet.bet_type.includes('UNDER')) {
+      return totalPoints < bet.total_value ? 'WIN' : 'LOSE';
+    }
+
+    return '-';
+  };
+
+  const handleScreenshotClick = async (url: string) => {
+    try {
+      if (url.includes('prnt.sc')) {
+        const response = await fetch(`${API_BASE}/screenshot?url=${encodeURIComponent(url)}`);
+        const data = await response.json();
+        if (data.image_url) {
+          setSelectedImage(data.image_url);
+        }
+      } else {
+        setSelectedImage(url);
       }
-
-      const mergedStats = {
-        ...statsFiltered,
-        currentBank: Number(fixedBank), // подменяем только банк
-      };
-
-      setBets(conflict ? [] : betsData); // при конфликте не показываем таблицу
-      setStats(mergedStats);
     } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error loading screenshot:', error);
     }
   };
 
-  const handleSync = async () => {
-    setSyncing(true);
-    try {
-      await betApi.syncNotionData(DEFAULT_SEASON); // синк строго с указанием сезона
-      await fetchData(filters);
-      alert('Синхронизация завершена успешно!');
-    } catch (error) {
-      alert('Ошибка синхронизации. Проверьте настройки Notion.');
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handleApplyFilters = (newFilters: any) => {
-    setFilters(newFilters);
-    fetchData(newFilters);
-  };
-
-  useEffect(() => {
-    fetchData({ season: DEFAULT_SEASON });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-400"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <FiltersSidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onApplyFilters={handleApplyFilters}
-      />
+    <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-xl rounded-2xl overflow-hidden border border-gray-700/30 shadow-2xl">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gray-900/50 backdrop-blur text-gray-300 text-sm">
+              <th className="p-4 text-left font-medium">ДАТА</th>
+              <th className="p-4 text-left font-medium">ТУРНИР</th>
+              <th className="p-4 text-left font-medium">МАТЧ</th>
+              <th className="p-4 text-left font-medium">СТАВКА</th>
+              <th className="p-4 text-left font-medium">СЧЕТ</th>
+              <th className="p-4 text-center font-medium">ОЧКИ</th>
+              <th className="p-4 text-left font-medium">РЕЗУЛЬТАТ</th>
+              <th className="p-4 text-center font-medium">ССЫЛКА</th>
+              <th className="p-4 text-center font-medium">СКРИН</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayedBets.map((bet, index) => {
+              const totalPoints = calculateTotalPoints(bet.score);
+              const result = bet.result || determineResult(bet);
 
-      <div className={`transition-all duration-300 ${sidebarOpen ? 'lg:ml-80' : ''}`}>
-        <div className="p-4 md:p-6 lg:p-8">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-8">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-3 bg-gray-800/50 backdrop-blur rounded-xl hover:bg-gray-700/50 text-white transition-all duration-200 hover:scale-105 shadow-lg"
-                title="Открыть фильтры"
-              >
-                <Menu size={20} />
-              </button>
-              <h1 className="text-2xl md:text-3xl font-bold text-white">
-                Basketball <span className="text-emerald-400">Analytics</span>
-              </h1>
-            </div>
-
-            {/* Кнопка синхронизации (скрыта на проде) */}
-            {showSync && (
-              <button
-                onClick={handleSync}
-                disabled={syncing}
-                className={`
-                  px-5 py-2.5 rounded-xl font-medium transition-all duration-200 shadow-lg
-                  flex items-center gap-2
-                  ${syncing
-                    ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white hover:scale-105 shadow-emerald-500/25'
-                  }
-                `}
-              >
-                <RefreshCw className={`${syncing ? 'animate-spin' : ''}`} size={18} />
-                {syncing ? 'Синхронизация...' : 'Синхронизировать'}
-              </button>
+              return (
+                <tr
+                  key={bet.id}
+                  className={`border-t border-gray-700/30 hover:bg-gray-700/20 transition-all duration-200 ${index % 2 === 0 ? 'bg-gray-800/20' : 'bg-gray-900/20'
+                    }`}
+                >
+                  <td className="p-4 text-gray-300 text-sm">
+                    {new Date(bet.date).toLocaleString('ru-RU', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </td>
+                  <td className="p-4 text-gray-300 text-sm font-medium">{bet.tournament}</td>
+                  <td className="p-4 text-gray-300 text-sm">{bet.match}</td>
+                  <td className="p-4">
+                    <span className={`font-semibold text-sm ${bet.bet_type?.includes('OVER')
+                      ? 'text-indigo-400'
+                      : 'text-indigo-400'
+                      }`}>
+                      {bet.bet_type} {bet.total_value}
+                    </span>
+                  </td>
+                  <td className="p-4 text-gray-300 text-sm font-mono">{bet.score || '-'}</td>
+                  <td className="p-4 text-center text-gray-200 font-semibold">
+                    {totalPoints > 0 ? totalPoints : '-'}
+                  </td>
+                  <td className="p-4">
+                    <span className={`font-bold text-sm ${result === 'WIN'
+                      ? 'text-green-500'
+                      : result === 'LOSE'
+                        ? 'text-red-500'
+                        : 'text-gray-500'
+                      }`}>
+                      {result === 'WIN' ? 'WIN' : result === 'LOSE' ? 'LOSE' : '-'}
+                    </span>
+                  </td>
+                  <td className="p-4 text-center">
+                    {bet.match_url && (
+                      <a
+                        href={bet.match_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300 transition-all duration-200"
+                        title="Открыть ссылку на матч"
+                      >
+                        <LinkIcon size={18} />
+                      </a>
+                    )}
+                  </td>
+                  <td className="p-4 text-center">
+                    {bet.screenshot_url && (
+                      <button
+                        onClick={() => handleScreenshotClick(bet.screenshot_url!)}
+                        className="text-emerald-400 hover:text-emerald-300 transition-all duration-200 hover:scale-110"
+                        title="Посмотреть скриншот"
+                      >
+                        <Camera size={18} />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            {displayedBets.length === 0 && (
+              <tr>
+                <td colSpan={9} className="p-12 text-center text-gray-500">
+                  Нет данных для отображения
+                </td>
+              </tr>
             )}
-          </div>
-
-          {/* Cards с метриками */}
-          {stats && <StatsCard stats={stats} />}
-
-          {/* Примечание о времени + селектор количества записей */}
-          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="text-sm text-gray-300/80">
-              Примечание: время ставок указано в европейском часовом поясе.
-            </div>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => setItemsPerPage(Number(e.target.value))}
-              className="px-4 py-2 bg-gray-800/50 backdrop-blur text-gray-300 rounded-xl border border-gray-700/30 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-            >
-              <option value={10}>10 записей</option>
-              <option value={25}>25 записей</option>
-              <option value={50}>50 записей</option>
-              <option value={100}>100 записей</option>
-            </select>
-          </div>
-
-          {/* Таблица / сообщение о конфликте фильтров */}
-          {filterConflict ? (
-            <div className="w-full p-6 rounded-xl bg-amber-900/30 border border-amber-500/30 text-amber-200 text-center">
-              Несогласующиеся фильтры: выбранный месяц не пересекается с диапазоном дат.
-            </div>
-          ) : (
-            <BetsTable bets={bets} loading={loading} itemsPerPage={itemsPerPage} />
-          )}
-        </div>
+          </tbody>
+        </table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center p-4 bg-gray-900/30 backdrop-blur border-t border-gray-700/30">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+            className="px-4 py-2 mx-1 bg-gray-700/50 backdrop-blur text-gray-300 rounded-xl hover:bg-gray-600/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
+          >
+            ← Назад
+          </button>
+          <span className="mx-4 text-gray-300 font-medium">
+            {currentPage} / {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+            className="px-4 py-2 mx-1 bg-gray-700/50 backdrop-blur text-gray-300 rounded-xl hover:bg-gray-600/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
+          >
+            Вперед →
+          </button>
+        </div>
+      )}
+
+      {selectedImage && (
+        <ImageModal
+          imageUrl={selectedImage}
+          onClose={() => setSelectedImage(null)}
+        />
+      )}
     </div>
   );
-}
+};
+
+export default BetsTable;
