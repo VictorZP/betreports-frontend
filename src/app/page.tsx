@@ -6,6 +6,8 @@ import StatsCard from '@/components/StatsCard';
 import BetsTable from '@/components/BetsTable';
 import FiltersSidebar from '@/components/FiltersSidebar';
 import betApi from '@/services/api';
+import NominalsTable from '@/components/NominalsTable';
+
 
 // Прод: скрываем кнопку синка
 const isProd = process.env.NODE_ENV === 'production';
