@@ -7,9 +7,12 @@ import BetsTable from '@/components/BetsTable';
 import FiltersSidebar from '@/components/FiltersSidebar';
 import betApi from '@/services/api';
 
+// Прод: скрываем кнопку синка
 const isProd = process.env.NODE_ENV === 'production';
 const showSync = !isProd && process.env.NEXT_PUBLIC_SHOW_SYNC === 'true';
 
+// Сезон по умолчанию
+const DEFAULT_SEASON = process.env.NEXT_PUBLIC_DEFAULT_SEASON || '2024-2025';
 
 export default function Home() {
   const [bets, setBets] = useState<any[]>([]);
@@ -19,37 +22,37 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [filters, setFilters] = useState<any>({});
   const [itemsPerPage, setItemsPerPage] = useState(25);
-  const [globalBank, setGlobalBank] = useState<number | null>(null);
 
-  const DEFAULT_SEASON = process.env.NEXT_PUBLIC_DEFAULT_SEASON || '2024-2025';
-  
+  // Глобальный (фиксированный) банк и флаг конфликта фильтров
+  const [globalBank, setGlobalBank] = useState<number | null>(null);
+  const [filterConflict, setFilterConflict] = useState(false);
+
+  // Подтянуть данные: метрики и ставки — по фильтрам; банк — общий (без фильтров)
   const fetchData = async (appliedFilters: any = {}) => {
     setLoading(true);
     try {
-      // 1) Берём данные с УЧЁТОМ фильтров (ставки + метрики)
-      // 2) Отдельно берём ГЛОБАЛЬНЫЕ статы БЕЗ фильтров — только ради currentBank
       const [betsData, statsFiltered, statsGlobal] = await Promise.all([
         betApi.getBets(appliedFilters),
         betApi.getStats(appliedFilters),
-        betApi.getStats({}), // ← ВАЖНО: без фильтров! берём общий currentBank
+        betApi.getStats({}), // общий currentBank без фильтров
       ]);
-  
-      // Зафиксированный банк: либо уже сохранённый, либо пришёл свежий с /stats без фильтров
+
+      const conflict = Boolean(statsFiltered?.filterConflict);
+      setFilterConflict(conflict);
+
       const fixedBank =
         globalBank ?? (statsGlobal?.currentBank as number | undefined) ?? 2000;
-  
-      // Один раз запомним глобальный банк, чтобы не дёргать лишний раз
+
       if (globalBank === null && statsGlobal?.currentBank != null) {
         setGlobalBank(Number(statsGlobal.currentBank));
       }
-  
-      // Подменяем ТОЛЬКО currentBank, остальные метрики оставляем из фильтрованных статов
+
       const mergedStats = {
         ...statsFiltered,
-        currentBank: Number(fixedBank),
+        currentBank: Number(fixedBank), // подменяем только банк
       };
-  
-      setBets(betsData);
+
+      setBets(conflict ? [] : betsData); // при конфликте не показываем таблицу
       setStats(mergedStats);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -61,7 +64,7 @@ export default function Home() {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      await betApi.syncNotionData('2024-2025'); // передаём сезон
+      await betApi.syncNotionData(DEFAULT_SEASON); // синк строго с указанием сезона
       await fetchData(filters);
       alert('Синхронизация завершена успешно!');
     } catch (error) {
@@ -77,9 +80,9 @@ export default function Home() {
   };
 
   useEffect(() => {
-    fetchData({ season: '2024-2025' });
+    fetchData({ season: DEFAULT_SEASON });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
@@ -106,7 +109,7 @@ export default function Home() {
               </h1>
             </div>
 
-            {/* Кнопка синхронизации показывается только если разрешено флагом */}
+            {/* Кнопка синхронизации (скрыта на проде) */}
             {showSync && (
               <button
                 onClick={handleSync}
@@ -126,11 +129,14 @@ export default function Home() {
             )}
           </div>
 
-          {/* Stats Cards */}
+          {/* Cards с метриками */}
           {stats && <StatsCard stats={stats} />}
 
-          {/* Items per page selector */}
-          <div className="mb-6 flex justify-end">
+          {/* Примечание о времени + селектор количества записей */}
+          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="text-sm text-gray-300/80">
+              Примечание: время ставок указано в европейском часовом поясе.
+            </div>
             <select
               value={itemsPerPage}
               onChange={(e) => setItemsPerPage(Number(e.target.value))}
@@ -143,8 +149,14 @@ export default function Home() {
             </select>
           </div>
 
-          {/* Bets Table */}
-          <BetsTable bets={bets} loading={loading} itemsPerPage={itemsPerPage} />
+          {/* Таблица / сообщение о конфликте фильтров */}
+          {filterConflict ? (
+            <div className="w-full p-6 rounded-xl bg-amber-900/30 border border-amber-500/30 text-amber-200 text-center">
+              Несогласующиеся фильтры: выбранный месяц не пересекается с диапазоном дат.
+            </div>
+          ) : (
+            <BetsTable bets={bets} loading={loading} itemsPerPage={itemsPerPage} />
+          )}
         </div>
       </div>
     </div>
