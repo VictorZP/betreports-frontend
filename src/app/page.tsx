@@ -5,14 +5,11 @@ import { Menu, RefreshCw } from 'lucide-react';
 import StatsCard from '@/components/StatsCard';
 import BetsTable from '@/components/BetsTable';
 import FiltersSidebar from '@/components/FiltersSidebar';
-import betApi from '@/services/api';
 import NominalsTable from '@/components/NominalsTable';
+import betApi from '@/services/api';
 
-// Прод: скрываем кнопку синка
 const isProd = process.env.NODE_ENV === 'production';
 const showSync = !isProd && process.env.NEXT_PUBLIC_SHOW_SYNC === 'true';
-
-// Сезон по умолчанию
 const DEFAULT_SEASON = process.env.NEXT_PUBLIC_DEFAULT_SEASON || '2024-2025';
 
 export default function Home() {
@@ -23,41 +20,29 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [filters, setFilters] = useState<any>({});
   const [itemsPerPage, setItemsPerPage] = useState(25);
-
-  // Глобальный (фиксированный) банк и флаг конфликта фильтров
   const [globalBank, setGlobalBank] = useState<number | null>(null);
   const [filterConflict, setFilterConflict] = useState(false);
 
-  // Подтянуть данные: метрики и ставки — по фильтрам; банк — общий (без фильтров)
   const fetchData = async (appliedFilters: any = {}) => {
     setLoading(true);
     try {
       const [betsData, statsFiltered, statsGlobal] = await Promise.all([
         betApi.getBets(appliedFilters),
         betApi.getStats(appliedFilters),
-        betApi.getStats({}), // общий currentBank без фильтров
+        betApi.getStats({}), // общий currentBank
       ]);
 
       const conflict = Boolean(statsFiltered?.filterConflict);
       setFilterConflict(conflict);
 
-      const fixedBank =
-        globalBank ?? (statsGlobal?.currentBank as number | undefined) ?? 2000;
-
+      const fixedBank = globalBank ?? (statsGlobal?.currentBank as number | undefined) ?? 2000;
       if (globalBank === null && statsGlobal?.currentBank != null) {
         setGlobalBank(Number(statsGlobal.currentBank));
       }
 
-      // подменяем только банк; periods и прочее остаются из фильтрованных статов
-      const mergedStats = {
-        ...statsFiltered,
-        currentBank: Number(fixedBank),
-      };
-
-      setBets(conflict ? [] : betsData); // при конфликте не показываем таблицу ставок
+      const mergedStats = { ...statsFiltered, currentBank: Number(fixedBank) };
+      setBets(conflict ? [] : betsData);
       setStats(mergedStats);
-    } catch (error) {
-      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
@@ -66,10 +51,10 @@ export default function Home() {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      await betApi.syncNotionData(DEFAULT_SEASON); // синк строго с указанием сезона
+      await betApi.syncNotionData(DEFAULT_SEASON);
       await fetchData(filters);
       alert('Синхронизация завершена успешно!');
-    } catch (error) {
+    } catch {
       alert('Ошибка синхронизации. Проверьте настройки Notion.');
     } finally {
       setSyncing(false);
@@ -92,11 +77,12 @@ export default function Home() {
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onApplyFilters={handleApplyFilters}
+        /** Живые изменения — сразу грузим данные */
+        onLiveChange={handleApplyFilters}
       />
 
       <div className={`transition-all duration-300 ${sidebarOpen ? 'lg:ml-80' : ''}`}>
         <div className="p-4 md:p-6 lg:p-8">
-          {/* Header */}
           <div className="flex justify-between items-center mb-8">
             <div className="flex items-center gap-4">
               <button
@@ -111,7 +97,6 @@ export default function Home() {
               </h1>
             </div>
 
-            {/* Кнопка синхронизации (скрыта на проде) */}
             {showSync && (
               <button
                 onClick={handleSync}
@@ -131,10 +116,13 @@ export default function Home() {
             )}
           </div>
 
-          {/* Cards с метриками */}
           {stats && <StatsCard stats={stats} />}
 
-          {/* Примечание о времени + селектор количества записей */}
+          {/* Таблица номиналов */}
+          {!filterConflict && stats?.periods?.length > 0 && (
+            <NominalsTable periods={stats.periods} />
+          )}
+
           <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="text-sm text-gray-300/80">
               Примечание: время ставок указано в европейском часовом поясе.
@@ -151,12 +139,6 @@ export default function Home() {
             </select>
           </div>
 
-          {/* Таблица номиналов (периоды) — показываем только если нет конфликта и есть данные */}
-          {!filterConflict && stats?.periods?.length > 0 && (
-            <NominalsTable periods={stats.periods} />
-          )}
-
-          {/* Таблица ставок / сообщение о конфликте фильтров */}
           {filterConflict ? (
             <div className="w-full p-6 rounded-xl bg-amber-900/30 border border-amber-500/30 text-amber-200 text-center">
               Несогласующиеся фильтры: выбранный месяц не пересекается с диапазоном дат.
