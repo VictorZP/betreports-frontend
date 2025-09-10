@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { X, Search, ChevronDown, ChevronUp, Trophy, Calendar, Clock, TrendingUp, Crown, Target, CalendarDays, Award } from 'lucide-react';
 import axios from 'axios';
 
+
+
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api').replace(/\/$/, '');
+
 interface FiltersSidebarProps {
   isOpen: boolean;
   onClose: () => void;
@@ -22,9 +26,9 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({ isOpen, onClose, onAppl
   const [betType, setBetType] = useState<'all' | 'OVER' | 'UNDER'>('all');
   const [isPremium, setIsPremium] = useState<'all' | 'premium' | 'regular'>('all');
   const [result, setResult] = useState<'all' | 'WIN' | 'LOSE'>('all');
-  const [availableMonths, setAvailableMonths] = useState<Array<{value: string, label: string}>>([]);
+  const [availableMonths, setAvailableMonths] = useState<Array<{ value: string, label: string }>>([]);
   const [selectedMonth, setSelectedMonth] = useState<string>('');
-  
+
   const [sections, setSections] = useState({
     season: true,
     tournaments: false,
@@ -42,10 +46,10 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({ isOpen, onClose, onAppl
 
   const fetchSeasonData = async () => {
     try {
-      const response = await axios.get(`http://localhost:8000/api/season-data?season=${selectedSeason}`);
+      const response = await axios.get(`${API_BASE}/season-data?season=${selectedSeason}`);
       setTournaments(response.data.tournaments || []);
       setSelectedTournaments(response.data.tournaments || []);
-      
+
       if (response.data.dateRange) {
         setMinDate(response.data.dateRange.min);
         setMaxDate(response.data.dateRange.max);
@@ -57,7 +61,7 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({ isOpen, onClose, onAppl
       if (selectedSeason === '2024-2025') {
         setMinDate('2024-11-26');
         try {
-          const tournamentsResponse = await axios.get('http://localhost:8000/api/tournaments');
+          const tournamentsResponse = await axios.get(`${API_BASE}/tournaments`);
           setTournaments(tournamentsResponse.data);
           setSelectedTournaments(tournamentsResponse.data);
         } catch (e) {
@@ -71,7 +75,7 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({ isOpen, onClose, onAppl
     setSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const filteredTournaments = tournaments.filter(t => 
+  const filteredTournaments = tournaments.filter(t =>
     t.toLowerCase().includes(tournamentSearch.toLowerCase())
   );
 
@@ -137,7 +141,7 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({ isOpen, onClose, onAppl
   return (
     <>
       {isOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
           onClick={onClose}
         />

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Camera, Link as LinkIcon } from 'lucide-react';
 import ImageModal from './ImageModal';
 
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api').replace(/\/$/, '');
+
 interface Bet {
   id: number;
   date: string;
@@ -68,7 +70,7 @@ const BetsTable: React.FC<BetsTableProps> = ({ bets, loading, itemsPerPage = 25 
   const handleScreenshotClick = async (url: string) => {
     try {
       if (url.includes('prnt.sc')) {
-        const response = await fetch(`http://localhost:8000/api/screenshot?url=${encodeURIComponent(url)}`);
+        const response = await fetch(`${API_BASE}/screenshot?url=${encodeURIComponent(url)}`);
         const data = await response.json();
         if (data.image_url) {
           setSelectedImage(data.image_url);
