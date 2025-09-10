@@ -1,20 +1,25 @@
 // src/components/NominalsTable.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 type PeriodRow = {
   start: string;      // 'YYYY-MM-DD'
   end: string;        // 'YYYY-MM-DD'
   nominal: number;
-  bank: number;
+  bank: number;       // банк на начало периода
   bets: number;
   wins: number;
   losses: number;
-  profit: number;
+  profit: number;     // прибыль за период
 };
 
 export default function NominalsTable({ periods }: { periods: PeriodRow[] }) {
-  const [open, setOpen] = useState<Record<number, boolean>>({}); // какие периоды раскрыты
+  const [open, setOpen] = useState<Record<number, boolean>>({});
+
+  // по желанию: первый период открыт
+  useEffect(() => {
+    if (periods?.length) setOpen({ 0: true });
+  }, [periods]);
 
   const toggle = (idx: number) =>
     setOpen((s) => ({ ...s, [idx]: !s[idx] }));
@@ -31,6 +36,12 @@ export default function NominalsTable({ periods }: { periods: PeriodRow[] }) {
     return `${d}.${m}.${y}`;
   };
 
+  // процент к банку с округлением до одного знака
+  const pctToBank = (profit: number, bank: number) => {
+    if (!bank) return 0;
+    return Math.round((profit / bank) * 1000) / 10; // 1 знак
+  };
+
   if (!periods || periods.length === 0) return null;
 
   return (
@@ -40,6 +51,11 @@ export default function NominalsTable({ periods }: { periods: PeriodRow[] }) {
         {periods.map((p, idx) => {
           const isOpen = !!open[idx];
           const profitColor = p.profit >= 0 ? 'text-emerald-300' : 'text-rose-300';
+          const pct = pctToBank(p.profit, p.bank);
+          const pctLabel =
+            pct > 0 ? 'Профит к банку' : pct < 0 ? 'Убыток от банка' : 'К банку';
+          const pctColor =
+            pct > 0 ? 'text-emerald-300' : pct < 0 ? 'text-rose-300' : 'text-gray-300';
 
           return (
             <div
@@ -93,6 +109,14 @@ export default function NominalsTable({ periods }: { periods: PeriodRow[] }) {
                       <div className="text-xs text-gray-400 uppercase">Профит</div>
                       <div className={`text-base mt-1 ${profitColor}`}>{fmtMoney(p.profit)}</div>
                     </div>
+
+                    {/* Новый блок: % к банку */}
+                    <div className="rounded-xl bg-gray-800/50 border border-gray-700/40 p-3 col-span-2">
+                      <div className="text-xs text-gray-400 uppercase">{pctLabel}</div>
+                      <div className={`text-base mt-1 ${pctColor}`}>
+                        {pct > 0 ? '+' : pct < 0 ? '−' : ''}{Math.abs(pct).toFixed(1)}%
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -113,11 +137,16 @@ export default function NominalsTable({ periods }: { periods: PeriodRow[] }) {
                 <th className="px-4 py-3">Ставок</th>
                 <th className="px-4 py-3">W/L</th>
                 <th className="px-4 py-3">Профит</th>
+                <th className="px-4 py-3">% к банку</th>
               </tr>
             </thead>
             <tbody>
               {periods.map((p, idx) => {
                 const profitColor = p.profit >= 0 ? 'text-emerald-300' : 'text-rose-300';
+                const pct = pctToBank(p.profit, p.bank);
+                const pctColor =
+                  pct > 0 ? 'text-emerald-300' : pct < 0 ? 'text-rose-300' : 'text-gray-300';
+
                 return (
                   <tr key={idx} className="border-b border-gray-700/30 last:border-b-0">
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -130,6 +159,9 @@ export default function NominalsTable({ periods }: { periods: PeriodRow[] }) {
                       {fmtNum(p.wins)} / {fmtNum(p.losses)}
                     </td>
                     <td className={`px-4 py-3 ${profitColor}`}>{fmtMoney(p.profit)}</td>
+                    <td className={`px-4 py-3 ${pctColor}`}>
+                      {pct > 0 ? '+' : pct < 0 ? '−' : ''}{Math.abs(pct).toFixed(1)}%
+                    </td>
                   </tr>
                 );
               })}
