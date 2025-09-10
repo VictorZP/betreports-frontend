@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Search, ChevronDown, ChevronUp, Trophy, Calendar, Clock, TrendingUp, Crown, Target, CalendarDays, Award } from 'lucide-react';
+import { X, Search, ChevronDown, ChevronUp, Award } from 'lucide-react';
 import axios from 'axios';
-
-
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api').replace(/\/$/, '');
 
@@ -13,20 +11,27 @@ interface FiltersSidebarProps {
 }
 
 const FiltersSidebar: React.FC<FiltersSidebarProps> = ({ isOpen, onClose, onApplyFilters }) => {
-  const [selectedSeason, setSelectedSeason] = useState<'2024-2025' | '2025-2026'>('2024-2025');
+  const [selectedSeason, setSelectedSeason] =
+    useState<'2024-2025' | '2025-2026'>('2024-2025');
+
   const [tournaments, setTournaments] = useState<string[]>([]);
   const [selectedTournaments, setSelectedTournaments] = useState<string[]>([]);
   const [tournamentSearch, setTournamentSearch] = useState('');
+
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [minDate, setMinDate] = useState('2024-11-26');
-  const [maxDate, setMaxDate] = useState('');
+  const [minDate, setMinDate] = useState('');   // <-- больше не хардкодим
+  const [maxDate, setMaxDate] = useState('');   // <-- подтягиваем с бэка
+
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+
   const [betType, setBetType] = useState<'all' | 'OVER' | 'UNDER'>('all');
   const [isPremium, setIsPremium] = useState<'all' | 'premium' | 'regular'>('all');
   const [result, setResult] = useState<'all' | 'WIN' | 'LOSE'>('all');
-  const [availableMonths, setAvailableMonths] = useState<Array<{ value: string, label: string }>>([]);
+
+  const [availableMonths, setAvailableMonths] =
+    useState<Array<{ value: string; label: string }>>([]);
   const [selectedMonth, setSelectedMonth] = useState<string>('');
 
   const [sections, setSections] = useState({
@@ -37,45 +42,49 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({ isOpen, onClose, onAppl
     month: false,
     betType: false,
     premium: false,
-    result: false
+    result: false,
   });
 
   useEffect(() => {
     fetchSeasonData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSeason]);
 
   const fetchSeasonData = async () => {
     try {
-      const response = await axios.get(`${API_BASE}/season-data?season=${selectedSeason}`);
-      setTournaments(response.data.tournaments || []);
-      setSelectedTournaments(response.data.tournaments || []);
+      const { data } = await axios.get(`${API_BASE}/season-data?season=${selectedSeason}`);
 
-      if (response.data.dateRange) {
-        setMinDate(response.data.dateRange.min);
-        setMaxDate(response.data.dateRange.max);
-      }
-      if (response.data.months) {
-        setAvailableMonths(response.data.months);
-      }
+      setTournaments(data.tournaments || []);
+      setSelectedTournaments(data.tournaments || []);
+
+      // Самые ранние/поздние даты берём из базы (Notion -> БД)
+      setMinDate(data?.dateRange?.min || '');
+      setMaxDate(data?.dateRange?.max || '');
+
+      // Доступные месяцы
+      setAvailableMonths(data?.months || []);
     } catch (error) {
-      if (selectedSeason === '2024-2025') {
-        setMinDate('2024-11-26');
-        try {
-          const tournamentsResponse = await axios.get(`${API_BASE}/tournaments`);
-          setTournaments(tournamentsResponse.data);
-          setSelectedTournaments(tournamentsResponse.data);
-        } catch (e) {
-          console.error('Error fetching tournaments:', e);
-        }
+      // В случае ошибки НЕ подставляем искусственную дату.
+      // Оставляем min/max пустыми — инпуты будут без ограничений.
+      setMinDate('');
+      setMaxDate('');
+      console.error('season-data load failed', error);
+      // запасной список турниров (если эндпоинт недоступен)
+      try {
+        const t = await axios.get(`${API_BASE}/tournaments`);
+        setTournaments(t.data || []);
+        setSelectedTournaments(t.data || []);
+      } catch (e) {
+        console.error('fallback tournaments failed', e);
       }
     }
   };
 
   const toggleSection = (section: keyof typeof sections) => {
-    setSections(prev => ({ ...prev, [section]: !prev[section] }));
+    setSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const filteredTournaments = tournaments.filter(t =>
+  const filteredTournaments = tournaments.filter((t) =>
     t.toLowerCase().includes(tournamentSearch.toLowerCase())
   );
 
@@ -83,24 +92,33 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({ isOpen, onClose, onAppl
   const deselectAllTournaments = () => setSelectedTournaments([]);
 
   const toggleTournament = (tournament: string) => {
-    setSelectedTournaments(prev =>
+    setSelectedTournaments((prev) =>
       prev.includes(tournament)
-        ? prev.filter(t => t !== tournament)
+        ? prev.filter((t) => t !== tournament)
         : [...prev, tournament]
     );
   };
 
   const handleSeasonChange = (season: '2024-2025' | '2025-2026') => {
     setSelectedSeason(season);
+    // Полный сброс зависимых фильтров — новые границы придут из /season-data
     setStartDate('');
     setEndDate('');
     setSelectedMonth('');
+    setMinDate('');
+    setMaxDate('');
   };
 
-  const handleApply = () => {
-    const filters = {
+  // единая сборка объекта фильтров из текущего состояния
+  const buildFilters = (overrides: Partial<Record<string, any>> = {}) => {
+    const tournamentsParam =
+      selectedTournaments.length === tournaments.length || selectedTournaments.length === 0
+        ? null
+        : selectedTournaments.join(',');
+
+    return {
       season: selectedSeason,
-      tournaments: selectedTournaments.length === tournaments.length ? null : selectedTournaments.join(','),
+      tournaments: tournamentsParam,
       start_date: startDate || null,
       end_date: endDate || null,
       start_time: startTime || null,
@@ -108,12 +126,31 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({ isOpen, onClose, onAppl
       bet_type: betType === 'all' ? null : betType,
       is_premium: isPremium === 'all' ? null : isPremium === 'premium',
       result: result === 'all' ? null : result,
-      month: selectedMonth || null
+      month: selectedMonth || null,
+      ...overrides,
     };
-    onApplyFilters(filters);
+  };
+
+  const handleApply = () => {
+    onApplyFilters(buildFilters());
     onClose();
   };
 
+  // СБРОС ТОЛЬКО ДАТ (и месяца, чтобы исключить конфликт)
+  const handleResetDates = () => {
+    setStartDate('');
+    setEndDate('');
+    setSelectedMonth('');
+    onApplyFilters(
+      buildFilters({
+        start_date: null,
+        end_date: null,
+        month: null,
+      })
+    );
+  };
+
+  // Глобальный сброс всех фильтров
   const handleReset = () => {
     setSelectedTournaments(tournaments);
     setStartDate('');
@@ -127,7 +164,16 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({ isOpen, onClose, onAppl
     onApplyFilters({ season: selectedSeason });
   };
 
-  const timeOptions = [];
+  // При выборе месяца очищаем диапазон дат (чтобы не было конфликта)
+  const handleMonthChange = (val: string) => {
+    setSelectedMonth(val);
+    if (val) {
+      setStartDate('');
+      setEndDate('');
+    }
+  };
+
+  const timeOptions: string[] = [];
   for (let h = 0; h < 24; h++) {
     for (let m = 0; m < 60; m += 15) {
       const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
@@ -135,8 +181,10 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({ isOpen, onClose, onAppl
     }
   }
 
-  const inputStyles = "w-full mt-1 px-3 py-2 bg-gray-700/40 text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all border border-gray-600/30";
-  const selectStyles = "w-full px-3 py-2 bg-gray-700/40 text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all border border-gray-600/30 appearance-none cursor-pointer";
+  const inputStyles =
+    'w-full mt-1 px-3 py-2 bg-gray-700/40 text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all border border-gray-600/30';
+  const selectStyles =
+    'w-full px-3 py-2 bg-gray-700/40 text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all border border-gray-600/30 appearance-none cursor-pointer';
 
   return (
     <>
@@ -147,12 +195,14 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({ isOpen, onClose, onAppl
         />
       )}
 
-      <div className={`
+      <div
+        className={`
         fixed top-0 left-0 h-full bg-gradient-to-b from-gray-800/95 to-gray-900/95 backdrop-blur-xl z-50 
         transform transition-all duration-300 ease-in-out
         ${isOpen ? 'translate-x-0 shadow-2xl shadow-emerald-500/10' : '-translate-x-full'}
         w-80 overflow-y-auto border-r border-gray-700/30
-      `}>
+      `}
+      >
         <div className="p-5">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold text-white">Фильтры</h2>
@@ -241,7 +291,7 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({ isOpen, onClose, onAppl
                   </button>
                 </div>
                 <div className="max-h-48 overflow-y-auto custom-scrollbar">
-                  {filteredTournaments.map(tournament => (
+                  {filteredTournaments.map((tournament) => (
                     <label key={tournament} className="flex items-center p-2 hover:bg-gray-600/20 rounded-xl cursor-pointer transition-all">
                       <input
                         type="checkbox"
@@ -276,22 +326,29 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({ isOpen, onClose, onAppl
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    min={minDate}
-                    max={maxDate}
+                    min={minDate || undefined}
+                    max={maxDate || undefined}
                     className={inputStyles}
                   />
                 </div>
-                <div>
+                <div className="mb-3">
                   <label className="text-xs text-gray-400 font-medium uppercase tracking-wider">Дата окончания</label>
                   <input
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    min={minDate}
-                    max={maxDate}
+                    min={minDate || undefined}
+                    max={maxDate || undefined}
                     className={inputStyles}
                   />
                 </div>
+
+                <button
+                  onClick={handleResetDates}
+                  className="mt-1 w-full px-3 py-2 bg-gray-700/50 text-gray-300 rounded-xl text-sm hover:bg-gray-700/70 transition-all duration-200"
+                >
+                  Сбросить даты
+                </button>
               </div>
             )}
           </div>
@@ -317,7 +374,7 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({ isOpen, onClose, onAppl
                     className={selectStyles}
                   >
                     <option value="">--:--</option>
-                    {timeOptions.map(time => (
+                    {timeOptions.map((time) => (
                       <option key={time} value={time}>{time}</option>
                     ))}
                   </select>
@@ -330,7 +387,7 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({ isOpen, onClose, onAppl
                     className={selectStyles}
                   >
                     <option value="">--:--</option>
-                    {timeOptions.map(time => (
+                    {timeOptions.map((time) => (
                       <option key={time} value={time}>{time}</option>
                     ))}
                   </select>
@@ -354,11 +411,11 @@ const FiltersSidebar: React.FC<FiltersSidebarProps> = ({ isOpen, onClose, onAppl
               <div className="mt-2 p-3 bg-gray-700/20 rounded-2xl">
                 <select
                   value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  onChange={(e) => handleMonthChange(e.target.value)}
                   className={selectStyles}
                 >
                   <option value="">Все месяцы</option>
-                  {availableMonths.map(month => (
+                  {availableMonths.map((month) => (
                     <option key={month.value} value={month.value}>{month.label}</option>
                   ))}
                 </select>
