@@ -148,13 +148,7 @@ const BetsTable: React.FC<BetsTableProps> = ({ bets, loading, itemsPerPage = 25 
                     }`}
                 >
                   <td className="p-4 text-gray-300 text-sm">
-                    {new Date(bet.date).toLocaleString('ru-RU', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
+                    {formatParis(bet.date)}
                   </td>
                   <td className="p-4 text-gray-300 text-sm font-medium">{bet.tournament}</td>
                   <td className="p-4 text-gray-300 text-sm">{bet.match}</td>
