@@ -19,16 +19,38 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [filters, setFilters] = useState<any>({});
   const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [globalBank, setGlobalBank] = useState<number | null>(null);
 
+  const DEFAULT_SEASON = process.env.NEXT_PUBLIC_DEFAULT_SEASON || '2024-2025';
+  
   const fetchData = async (appliedFilters: any = {}) => {
     setLoading(true);
     try {
-      const [betsData, statsData] = await Promise.all([
+      // 1) Берём данные с УЧЁТОМ фильтров (ставки + метрики)
+      // 2) Отдельно берём ГЛОБАЛЬНЫЕ статы БЕЗ фильтров — только ради currentBank
+      const [betsData, statsFiltered, statsGlobal] = await Promise.all([
         betApi.getBets(appliedFilters),
         betApi.getStats(appliedFilters),
+        betApi.getStats({}), // ← ВАЖНО: без фильтров! берём общий currentBank
       ]);
+  
+      // Зафиксированный банк: либо уже сохранённый, либо пришёл свежий с /stats без фильтров
+      const fixedBank =
+        globalBank ?? (statsGlobal?.currentBank as number | undefined) ?? 2000;
+  
+      // Один раз запомним глобальный банк, чтобы не дёргать лишний раз
+      if (globalBank === null && statsGlobal?.currentBank != null) {
+        setGlobalBank(Number(statsGlobal.currentBank));
+      }
+  
+      // Подменяем ТОЛЬКО currentBank, остальные метрики оставляем из фильтрованных статов
+      const mergedStats = {
+        ...statsFiltered,
+        currentBank: Number(fixedBank),
+      };
+  
       setBets(betsData);
-      setStats(statsData);
+      setStats(mergedStats);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
