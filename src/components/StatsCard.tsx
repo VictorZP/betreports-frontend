@@ -4,107 +4,121 @@ import {
   TrendingUp,
   TrendingDown,
   Percent,
+  Target,
   Activity,
   DollarSign,
-  Target,
 } from 'lucide-react';
 
 type Stats = {
-  totalProfit: number;   // прибыль за выбранный период
-  roi: number;           // эффективность, %
-  wins: number;          // побед
-  losses: number;        // поражений
-  winRate?: number;      // точность, %
-  currentBank: number;   // текущий банк (фиксированный)
+  totalProfit: number;
+  roi: number;
+  wins: number;
+  losses: number;
+  currentBank: number;
 };
 
 interface Props {
   stats: Stats;
 }
 
-const formatNum = (n: number, frac = 2) =>
-  (n ?? 0).toLocaleString('en-US', {
-    minimumFractionDigits: n % 1 === 0 ? 0 : Math.min(frac, 2),
-    maximumFractionDigits: frac,
-  });
+const fmtMoney = (n: number) =>
+  (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
 
-const StatsCard: React.FC<Props> = ({ stats }) => {
-  const profit = Number(stats.totalProfit ?? 0);
-  const isProfitPositive = profit >= 0;
-  const ArrowIcon = isProfitPositive ? TrendingUp : TrendingDown;
+const fmtNumber = (n: number) =>
+  n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+const fmtPercent = (n: number) =>
+  `${(Math.round(n * 10) / 10).toFixed(1)}%`;
+
+export default function StatsCard({ stats }: Props) {
+  const profit = Number(stats?.totalProfit ?? 0);
+  const roi = Number(stats?.roi ?? 0);
+  const wins = Number(stats?.wins ?? 0);
+  const losses = Number(stats?.losses ?? 0);
+  const bank = Number(stats?.currentBank ?? 0);
+
+  const profitPositive = profit >= 0;
+  const roiPositive = roi >= 0;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-8">
-      {/* Прибыль (динамичная стрелка) */}
-      <div className="rounded-2xl p-6 bg-gradient-to-br from-gray-800/60 to-gray-900/60 border border-gray-700/40 shadow-xl">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm text-gray-400">Прибыль</span>
-          <ArrowIcon
-            size={18}
-            className={isProfitPositive ? 'text-emerald-400' : 'text-rose-400'}
-            aria-label={isProfitPositive ? 'profit up' : 'profit down'}
-          />
+    <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-5 mb-6">
+      {/* Profit */}
+      <div className={`rounded-2xl border backdrop-blur p-5 md:p-6 shadow-sm
+        ${profitPositive
+          ? 'from-emerald-700/25 to-emerald-600/10 border-emerald-500/30 bg-gradient-to-br'
+          : 'from-rose-700/25 to-rose-600/10 border-rose-500/30 bg-gradient-to-br'
+        }`}
+      >
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-300/80">Прибыль</div>
+          {profitPositive ? (
+            <TrendingUp className="text-emerald-400" size={20} />
+          ) : (
+            <TrendingDown className="text-rose-400" size={20} />
+          )}
         </div>
-        <div
-          className={`text-3xl font-bold ${
-            isProfitPositive ? 'text-emerald-300' : 'text-rose-300'
-          }`}
+        <div className={`mt-3 text-3xl font-semibold
+          ${profitPositive ? 'text-emerald-300' : 'text-rose-300'}`}
         >
-          {isProfitPositive ? '' : '-'}
-          {formatNum(Math.abs(profit))}
+          {fmtMoney(profit)}
         </div>
-        <div className="text-xs text-gray-400 mt-1">за выбранный период</div>
+        <div className="text-xs mt-1 text-gray-400">за выбранный период</div>
       </div>
 
-      {/* ROI */}
-      <div className="rounded-2xl p-6 bg-gradient-to-br from-gray-800/60 to-gray-900/60 border border-gray-700/40 shadow-xl">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm text-gray-400">ROI</span>
-          <Percent size={18} className="text-indigo-300" />
+      {/* ROI — динамический цвет */}
+      <div className={`rounded-2xl border backdrop-blur p-5 md:p-6 shadow-sm
+        ${roiPositive
+          ? 'from-emerald-700/20 to-emerald-600/5 border-emerald-500/25 bg-gradient-to-br'
+          : 'from-rose-700/20 to-rose-600/5 border-rose-500/25 bg-gradient-to-br'
+        }`}
+      >
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-300/80">ROI</div>
+          <Percent className={`${roiPositive ? 'text-emerald-400' : 'text-rose-400'}`} size={20} />
         </div>
-        <div className="text-3xl font-bold text-indigo-200">
-          {formatNum(Number(stats.roi ?? 0), 1)}%
+        <div className={`mt-3 text-3xl font-semibold
+          ${roiPositive ? 'text-emerald-300' : 'text-rose-300'}`}
+        >
+          {fmtPercent(roi)}
         </div>
-        <div className="text-xs text-gray-400 mt-1">эффективность</div>
+        <div className="text-xs mt-1 text-gray-400">эффективность</div>
       </div>
 
-      {/* Результаты */}
-      <div className="rounded-2xl p-6 bg-gradient-to-br from-gray-800/60 to-gray-900/60 border border-gray-700/40 shadow-xl">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm text-gray-400">Результаты</span>
-          <Target size={18} className="text-cyan-300" />
+      {/* Results */}
+      <div className="rounded-2xl border border-indigo-500/25 bg-gradient-to-br from-indigo-700/20 to-indigo-600/5 backdrop-blur p-5 md:p-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-300/80">Результаты</div>
+          <Target className="text-indigo-300" size={20} />
         </div>
-        <div className="text-3xl font-bold text-cyan-200">
-          {formatNum(Number(stats.wins || 0), 0)} / {formatNum(Number(stats.losses || 0), 0)}
+        <div className="mt-3 text-3xl font-semibold text-indigo-200">
+          {fmtNumber(wins)} <span className="text-gray-400">/</span> {fmtNumber(losses)}
         </div>
-        <div className="text-xs text-gray-400 mt-1">победы / поражения</div>
+        <div className="text-xs mt-1 text-gray-400">победы / поражения</div>
       </div>
 
-      {/* Точность */}
-      <div className="rounded-2xl p-6 bg-gradient-to-br from-gray-800/60 to-gray-900/60 border border-gray-700/40 shadow-xl">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm text-gray-400">WinRate</span>
-          <Activity size={18} className="text-amber-300" />
+      {/* WinRate */}
+      <div className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-700/20 to-amber-600/5 backdrop-blur p-5 md:p-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-300/80">WinRate</div>
+          <Activity className="text-amber-300" size={20} />
         </div>
-        <div className="text-3xl font-bold text-amber-200">
-          {formatNum(Number(stats.winRate ?? 0), 2)}%
+        <div className="mt-3 text-3xl font-semibold text-amber-200">
+          {fmtPercent((wins + losses) ? (wins / (wins + losses)) * 100 : 0)}
         </div>
-        <div className="text-xs text-gray-400 mt-1">точность</div>
+        <div className="text-xs mt-1 text-gray-400">точность</div>
       </div>
 
-      {/* Банк */}
-      <div className="rounded-2xl p-6 bg-gradient-to-br from-gray-800/60 to-gray-900/60 border border-gray-700/40 shadow-xl">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm text-gray-400">Банк</span>
-          <DollarSign size={18} className="text-emerald-300" />
+      {/* Bank (фиксированный) */}
+      <div className="rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-700/20 to-emerald-600/5 backdrop-blur p-5 md:p-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-300/80">Банк</div>
+          <DollarSign className="text-emerald-300" size={20} />
         </div>
-        <div className="text-3xl font-bold text-emerald-200">
-          ${formatNum(Number(stats.currentBank ?? 0), 2)}
+        <div className="mt-3 text-3xl font-semibold text-emerald-200">
+          {fmtMoney(bank)}
         </div>
-        <div className="text-xs text-gray-400 mt-1">текущий банк</div>
+        <div className="text-xs mt-1 text-gray-400">текущий банк</div>
       </div>
     </div>
   );
-};
-
-export default StatsCard;
+}
