@@ -8,7 +8,6 @@ import FiltersSidebar from '@/components/FiltersSidebar';
 import betApi from '@/services/api';
 import NominalsTable from '@/components/NominalsTable';
 
-
 // Прод: скрываем кнопку синка
 const isProd = process.env.NODE_ENV === 'production';
 const showSync = !isProd && process.env.NEXT_PUBLIC_SHOW_SYNC === 'true';
@@ -49,12 +48,13 @@ export default function Home() {
         setGlobalBank(Number(statsGlobal.currentBank));
       }
 
+      // подменяем только банк; periods и прочее остаются из фильтрованных статов
       const mergedStats = {
         ...statsFiltered,
-        currentBank: Number(fixedBank), // подменяем только банк
+        currentBank: Number(fixedBank),
       };
 
-      setBets(conflict ? [] : betsData); // при конфликте не показываем таблицу
+      setBets(conflict ? [] : betsData); // при конфликте не показываем таблицу ставок
       setStats(mergedStats);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -151,7 +151,12 @@ export default function Home() {
             </select>
           </div>
 
-          {/* Таблица / сообщение о конфликте фильтров */}
+          {/* Таблица номиналов (периоды) — показываем только если нет конфликта и есть данные */}
+          {!filterConflict && stats?.periods?.length > 0 && (
+            <NominalsTable periods={stats.periods} />
+          )}
+
+          {/* Таблица ставок / сообщение о конфликте фильтров */}
           {filterConflict ? (
             <div className="w-full p-6 rounded-xl bg-amber-900/30 border border-amber-500/30 text-amber-200 text-center">
               Несогласующиеся фильтры: выбранный месяц не пересекается с диапазоном дат.
