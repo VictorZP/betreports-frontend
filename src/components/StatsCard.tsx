@@ -1,6 +1,5 @@
+import React from 'react';
 import { TrendingUp, TrendingDown, Target, DollarSign, Percent, Activity } from 'lucide-react';
-import React from 'react'; import { TrendingUp, TrendingDown, Target, DollarSign, Percent, Activity } from 'lucide-react';
-
 
 interface StatsCardProps {
   stats: {
@@ -24,56 +23,55 @@ const StatsCard: React.FC<StatsCardProps> = ({ stats }) => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-      {/* Total Bets Card */}
-      <div className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-lg p-5 rounded-2xl border border-gray-700/50 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 hover:scale-[1.02]">
+      {/* Прибыль */}
+      <div className="bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 backdrop-blur-lg p-5 rounded-2xl border border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02]">
         <div className="flex items-center justify-between mb-3">
-          <Activity className="text-emerald-400" size={24} />
-          <span className="text-xs text-gray-500 font-medium">Всего</span>
+          <TrendingUp className={`${isPositiveProfit ? 'text-emerald-400' : 'text-rose-400'}`} size={24} />
+          <span className="text-xs text-emerald-300/70 font-medium">Прибыль</span>
         </div>
-        <div className="text-3xl font-bold text-white mb-1">{stats.totalBets || 0}</div>
-        <div className="text-sm text-gray-400">матчей</div>
+        <div className={`text-3xl font-bold ${isPositiveProfit ? 'text-emerald-400' : 'text-rose-400'} mb-1`}>
+          {stats.totalProfit.toFixed(2)}
+        </div>
+        <div className="text-sm text-emerald-300/70">за выбранный период</div>
       </div>
 
-      {/* Win Rate Card */}
-      <div className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-lg p-5 rounded-2xl border border-gray-700/50 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 hover:scale-[1.02]">
+      {/* ROI */}
+      <div className="bg-gradient-to-br from-indigo-900/30 to-indigo-800/20 backdrop-blur-lg p-5 rounded-2xl border border-indigo-500/30 hover:shadow-2xl hover:shadow-indigo-500/20 transition-all duration-300 hover:scale-[1.02]">
         <div className="flex items-center justify-between mb-3">
-          <Target className="text-blue-400" size={24} />
-          <span className="text-xs text-gray-500 font-medium">Точность</span>
+          <Percent className={`${isPositiveROI ? 'text-indigo-400' : 'text-rose-400'}`} size={24} />
+          <span className="text-xs text-indigo-300/70 font-medium">ROI</span>
         </div>
-        <div className="text-3xl font-bold text-white mb-1">
-          {stats.winRate || 0}%
+        <div className={`text-3xl font-bold ${isPositiveROI ? 'text-indigo-400' : 'text-rose-400'} mb-1`}>
+          {stats.roi.toFixed(2)}%
         </div>
-        <div className="text-sm text-gray-400">процент побед</div>
+        <div className="text-sm text-indigo-300/70">эффективность</div>
       </div>
 
-      {/* Total Profit Card */}
-      <div className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-lg p-5 rounded-2xl border border-gray-700/50 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 hover:scale-[1.02]">
+      {/* Победы / Поражения */}
+      <div className="bg-gradient-to-br from-cyan-900/30 to-cyan-800/20 backdrop-blur-lg p-5 rounded-2xl border border-cyan-500/30 hover:shadow-2xl hover:shadow-cyan-500/20 transition-all duration-300 hover:scale-[1.02]">
         <div className="flex items-center justify-between mb-3">
-          {isPositiveProfit ?
-            <TrendingUp className="text-emerald-400" size={24} /> :
-            <TrendingDown className="text-red-400" size={24} />
-          }
-          <span className="text-xs text-gray-500 font-medium">Профит</span>
+          <Target className="text-cyan-400" size={24} />
+          <span className="text-xs text-cyan-300/70 font-medium">Результаты</span>
         </div>
-        <div className={`text-3xl font-bold mb-1 ${isPositiveProfit ? 'text-emerald-400' : 'text-red-400'}`}>
-          {isPositiveProfit ? '+' : ''}{stats.totalProfit?.toFixed(2) || '0.00'}$
+        <div className="text-3xl font-bold text-cyan-400 mb-1">
+          {stats.wins} / {stats.losses}
         </div>
-        <div className="text-sm text-gray-400">чистая прибыль</div>
+        <div className="text-sm text-cyan-300/70">победы / поражения</div>
       </div>
 
-      {/* ROI Card */}
-      <div className="bg-gradient-to-br from-gray-800/90 to-gray-900/90 backdrop-blur-lg p-5 rounded-2xl border border-gray-700/50 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 hover:scale-[1.02]">
+      {/* WinRate */}
+      <div className="bg-gradient-to-br from-amber-900/30 to-amber-800/20 backdrop-blur-lg p-5 rounded-2xl border border-amber-500/30 hover:shadow-2xl hover:shadow-amber-500/20 transition-all duration-300 hover:scale-[1.02]">
         <div className="flex items-center justify-between mb-3">
-          <Percent className={isPositiveROI ? "text-emerald-400" : "text-red-400"} size={24} />
-          <span className="text-xs text-gray-500 font-medium">ROI</span>
+          <Activity className="text-amber-400" size={24} />
+          <span className="text-xs text-amber-300/70 font-medium">WinRate</span>
         </div>
-        <div className={`text-3xl font-bold mb-1 ${isPositiveROI ? 'text-emerald-400' : 'text-red-400'}`}>
-          {isPositiveROI ? '+' : '-'}{Math.abs(stats.roi || 0)}%
+        <div className="text-3xl font-bold text-amber-400 mb-1">
+          {stats.winRate.toFixed(2)}%
         </div>
-        <div className="text-sm text-gray-400">возврат инвестиций</div>
+        <div className="text-sm text-amber-300/70">точность</div>
       </div>
 
-      {/* Current Bank Card - показывает рассчитанный текущий банк */}
+      {/* Текущий банк */}
       <div className="bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 backdrop-blur-lg p-5 rounded-2xl border border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02]">
         <div className="flex items-center justify-between mb-3">
           <DollarSign className="text-emerald-400" size={24} />
